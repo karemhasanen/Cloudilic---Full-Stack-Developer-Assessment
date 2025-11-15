@@ -66,6 +66,13 @@ temp/
 # TypeScript
 *.tsbuildinfo
 
-# Optional: Uncomment if you want to ignore these
-# *.md
-# !README.md
+# Documentation files (exclude from GitHub)
+QUICK_START.md
+RENAME_INSTRUCTIONS.md
+SETUP.md
+TROUBLESHOOTING.md
+BONUS_FEATURES.md
+MODEL_CONFIGURATION.md
+
+# Keep README.md (required for GitHub)
+!README.md

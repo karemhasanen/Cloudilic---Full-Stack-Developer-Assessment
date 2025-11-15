@@ -394,13 +394,12 @@ npm run preview          # Preview production build
 - **Memory**: Conversation history stored in-memory (30-minute timeout)
 - **Multi-Document**: Supports multiple RAG nodes for querying different PDFs
 
-## 📚 Additional Documentation
+## 📚 Additional Information
 
-- **[BONUS_FEATURES.md](./BONUS_FEATURES.md)** - Details on bonus features (memory, smart prompts, orchestration)
-- **[SETUP.md](./SETUP.md)** - Detailed setup guide
-- **[QUICK_START.md](./QUICK_START.md)** - Quick reference guide
-- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
-- **[MODEL_CONFIGURATION.md](./MODEL_CONFIGURATION.md)** - Model and API configuration details
+All setup and configuration details are included in this README. For more information:
+- Setup instructions: See "🛠️ Setup Instructions" section above
+- Troubleshooting: See "🐛 Troubleshooting" section below
+- Model configuration: See "⚙️ Environment Variables" section above
 
 ## 🐛 Troubleshooting
 
@@ -411,7 +410,7 @@ npm run preview          # Preview production build
 3. **PDF Upload Fails**: Check file size (max 10MB) and ensure PDF has extractable text
 4. **Token Limit Errors**: Reduce `MAX_TOKENS` or context chunk settings
 
-See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for detailed solutions.
+See the "🐛 Troubleshooting" section above for detailed solutions.
 
 ## 🎯 Features Implemented
 
@@ -439,3 +438,5 @@ Built for Cloudilic Full-Stack Developer Assessment
 **Live Demo**: [Add your deployed URL here]  
 **Repository**: [Add your GitHub URL here]
 
+#   C l o u d i l i c - F u l l - S t a c k - D e v e l o p e r - A s s e s s m e n t  
+ 
