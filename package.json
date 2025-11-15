@@ -1,24 +1,24 @@
 {
-  "name": "cloudilic-workflow-builder",
+  "name": "cloudilic-full-stack",
   "version": "1.0.0",
-  "description": "Cloudilic – Full‑Stack Developer Assessment - Workflow Builder with RAG",
+  "description": "Cloudilic Full-Stack Developer Assessment",
   "scripts": {
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd frontend && npm run dev",
-    "build:backend": "cd backend && npm run build",
-    "build:frontend": "cd frontend && npm run build",
-    "build:all": "npm run build:backend && npm run build:frontend"
+    "install:all": "cd backend && npm install && cd ../frontend && npm install"
   },
-  "keywords": [
-    "workflow",
-    "rag",
-    "react-flow",
-    "openai"
-  ],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@types/pdf-parse": "^1.1.5"
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.20.1",
+    "pdf-parse": "^1.1.1",
+    "uuid": "^9.0.1",
+    "@types/pdf-parse": "^1.1.5",
+    "@types/node": "^20.10.5",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/multer": "^1.4.11",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.3.3"
   }
 }
