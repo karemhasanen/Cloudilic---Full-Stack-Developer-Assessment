@@ -394,23 +394,7 @@ npm run preview          # Preview production build
 - **Memory**: Conversation history stored in-memory (30-minute timeout)
 - **Multi-Document**: Supports multiple RAG nodes for querying different PDFs
 
-## 📚 Additional Information
 
-All setup and configuration details are included in this README. For more information:
-- Setup instructions: See "🛠️ Setup Instructions" section above
-- Troubleshooting: See "🐛 Troubleshooting" section below
-- Model configuration: See "⚙️ Environment Variables" section above
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Port Already in Use**: Change `PORT` in `backend/.env`
-2. **API Key Errors**: Verify your API key is correct and has credits/billing set up
-3. **PDF Upload Fails**: Check file size (max 10MB) and ensure PDF has extractable text
-4. **Token Limit Errors**: Reduce `MAX_TOKENS` or context chunk settings
-
-See the "🐛 Troubleshooting" section above for detailed solutions.
 
 ## 🎯 Features Implemented
 
