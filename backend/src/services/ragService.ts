@@ -6,7 +6,7 @@ import { MemoryService } from './memoryService';
 dotenv.config();
 
 export class RAGService {
-  private openai: OpenAI;
+  private openai!: OpenAI;
   private openaiClient: OpenAI | null = null;
   private openRouterClient: OpenAI | null = null;
   private vectorStore: VectorStore;

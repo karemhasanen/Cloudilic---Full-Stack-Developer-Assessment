@@ -10,8 +10,15 @@
     "build:frontend": "cd frontend && npm run build",
     "build:all": "npm run build:backend && npm run build:frontend"
   },
-  "keywords": ["workflow", "rag", "react-flow", "openai"],
+  "keywords": [
+    "workflow",
+    "rag",
+    "react-flow",
+    "openai"
+  ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@types/pdf-parse": "^1.1.5"
+  }
 }
-
