@@ -4,9 +4,18 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install && if [ -d backend ]; then cd backend && npm install && cd ..; fi && cd frontend && npm install",
   "framework": null,
+  "functions": {
+    "api/index.ts": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "rewrites": [
     {
-      "source": "/((?!api).*)",
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
