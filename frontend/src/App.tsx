@@ -33,7 +33,7 @@ function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeData, setNodeData] = useState<Record<string, any>>({});
-  const { executeWorkflow, isExecuting, clearMemory, workflowId } = useWorkflowExecution();
+  const { executeWorkflow, isExecuting } = useWorkflowExecution();
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),

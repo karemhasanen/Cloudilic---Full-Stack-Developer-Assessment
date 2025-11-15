@@ -2,7 +2,7 @@ import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import './NodeStyles.css';
 
-export const OutputNode: React.FC<NodeProps> = ({ id, data }) => {
+export const OutputNode: React.FC<NodeProps> = ({ data }) => {
   return (
     <div className="node output-node">
       <Handle type="target" position={Position.Left} />

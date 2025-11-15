@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import './NodeStyles.css';
 
-export const InputNode: React.FC<NodeProps> = ({ id, data }) => {
+export const InputNode: React.FC<NodeProps> = ({ data }) => {
   const handleChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       if (data.onDataChange) {
