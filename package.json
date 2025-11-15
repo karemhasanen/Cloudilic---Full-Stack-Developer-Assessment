@@ -1,0 +1,17 @@
+{
+  "name": "cloudilic-workflow-builder",
+  "version": "1.0.0",
+  "description": "Cloudilic – Full‑Stack Developer Assessment - Workflow Builder with RAG",
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build:all": "npm run build:backend && npm run build:frontend"
+  },
+  "keywords": ["workflow", "rag", "react-flow", "openai"],
+  "author": "",
+  "license": "ISC"
+}
+
