@@ -425,19 +425,5 @@ See the "🐛 Troubleshooting" section above for detailed solutions.
 ✅ OpenAI and OpenRouter support  
 ✅ Beautiful, modern UI  
 
-## 📝 License
-
-ISC
-
-## 👤 Author
-
-Built for Cloudilic Full-Stack Developer Assessment
-
----
-
 **Live Demo**: [Add your deployed URL here]  
 **Repository**: [Add your GitHub URL here]
-
-#   C l o u d i l i c - F u l l - S t a c k - D e v e l o p e r - A s s e s s m e n t  
- #   c l o u d i l i c - a s s e s s m e n t  
- 
