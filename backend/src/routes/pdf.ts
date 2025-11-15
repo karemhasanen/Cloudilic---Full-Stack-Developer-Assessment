@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -7,8 +7,19 @@ import { PDFService } from '../services/pdfService';
 const router = express.Router();
 
 // Configure multer for file uploads
+// Use /tmp for Vercel serverless functions, otherwise use uploads/
+const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+const uploadDest = isVercel ? '/tmp' : path.join(process.cwd(), 'uploads');
+
+// Ensure uploads directory exists (only for local development)
+if (!isVercel) {
+  if (!fs.existsSync(uploadDest)) {
+    fs.mkdirSync(uploadDest, { recursive: true });
+  }
+}
+
 const upload = multer({
-  dest: 'uploads/',
+  dest: uploadDest,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
@@ -21,14 +32,22 @@ const upload = multer({
   },
 });
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Multer error handling middleware
+const handleMulterError = (err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File too large. Maximum size is 10MB' });
+    }
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  }
+  if (err) {
+    return res.status(400).json({ error: err.message || 'File upload error' });
+  }
+  next();
+};
 
 // Upload PDF endpoint
-router.post('/upload', upload.single('pdf'), async (req: Request, res: Response) => {
+router.post('/upload', upload.single('pdf'), handleMulterError, async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No PDF file provided' });
@@ -49,10 +68,17 @@ router.post('/upload', upload.single('pdf'), async (req: Request, res: Response)
     });
   } catch (error: any) {
     console.error('PDF upload error:', error);
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
+    // Clean up file if it exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('Error cleaning up file:', cleanupError);
+      }
     }
-    res.status(500).json({ error: error.message || 'Failed to process PDF' });
+    // Ensure error message is always a string
+    const errorMessage = error?.message || error?.toString() || 'Failed to process PDF';
+    res.status(500).json({ error: errorMessage });
   }
 });
 

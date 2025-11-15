@@ -41,7 +41,18 @@ export const RAGNode: React.FC<NodeProps> = ({ id, data }) => {
         }
       } catch (error: any) {
         console.error('Upload error:', error);
-        setUploadStatus(`Error: ${error.response?.data?.error || error.message}`);
+        // Better error handling to avoid "[object Object]"
+        let errorMessage = 'Failed to upload PDF';
+        if (error.response?.data?.error) {
+          errorMessage = typeof error.response.data.error === 'string' 
+            ? error.response.data.error 
+            : JSON.stringify(error.response.data.error);
+        } else if (error.message) {
+          errorMessage = error.message;
+        } else if (error.toString && error.toString() !== '[object Object]') {
+          errorMessage = error.toString();
+        }
+        setUploadStatus(`Error: ${errorMessage}`);
       } finally {
         setUploading(false);
       }
