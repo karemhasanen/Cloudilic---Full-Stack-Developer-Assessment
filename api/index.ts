@@ -45,14 +45,26 @@ app.get('/api/health', (req, res) => {
 
 // Debug endpoint to check environment variables (without exposing full keys)
 app.get('/api/debug/env', (req, res) => {
+  const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   
   // Check for common issues
   const issues = [];
-  if (!openaiKey && !openRouterKey) {
+  if (!geminiKey && !openaiKey && !openRouterKey) {
     issues.push('No API keys set');
   } else {
+    if (geminiKey) {
+      if (geminiKey.length < 30) {
+        issues.push(`Gemini key too short: ${geminiKey.length} chars (expected 39)`);
+      }
+      if (!geminiKey.startsWith('AIza')) {
+        issues.push('Gemini key does not start with "AIza"');
+      }
+      if (geminiKey.includes('*') || geminiKey.includes(' ')) {
+        issues.push('Gemini key contains invalid characters (asterisks or spaces)');
+      }
+    }
     if (openaiKey) {
       if (openaiKey.length < 40) {
         issues.push(`OpenAI key too short: ${openaiKey.length} chars (expected 50-60)`);
@@ -60,7 +72,6 @@ app.get('/api/debug/env', (req, res) => {
       if (!openaiKey.startsWith('sk-')) {
         issues.push('OpenAI key does not start with "sk-"');
       }
-      // Check for suspicious patterns
       if (openaiKey.includes('*') || openaiKey.includes(' ')) {
         issues.push('OpenAI key contains invalid characters (asterisks or spaces)');
       }
@@ -68,9 +79,16 @@ app.get('/api/debug/env', (req, res) => {
     if (openRouterKey && openRouterKey.length < 20) {
       issues.push(`OpenRouter key too short: ${openRouterKey.length} chars`);
     }
+    // Warn if no embedding provider
+    if (!openaiKey && !openRouterKey) {
+      issues.push('Warning: No embedding provider set (Gemini doesn\'t support embeddings, need OpenAI or OpenRouter)');
+    }
   }
   
   res.json({
+    hasGeminiKey: !!geminiKey,
+    geminiKeyLength: geminiKey?.length || 0,
+    geminiKeyPrefix: geminiKey ? `${geminiKey.substring(0, 10)}...${geminiKey.substring(geminiKey.length - 4)}` : 'not set',
     hasOpenAIKey: !!openaiKey,
     openAIKeyLength: openaiKey?.length || 0,
     openAIKeyPrefix: openaiKey ? `${openaiKey.substring(0, 10)}...${openaiKey.substring(openaiKey.length - 4)}` : 'not set',

@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { OpenAI } from 'openai';
 import dotenv from 'dotenv';
 import { VectorStore } from './vectorStore';
@@ -6,28 +7,33 @@ import { MemoryService } from './memoryService';
 dotenv.config();
 
 export class RAGService {
-  private openai!: OpenAI;
+  private geminiClient: GoogleGenerativeAI | null = null;
   private openaiClient: OpenAI | null = null;
   private openRouterClient: OpenAI | null = null;
   private vectorStore: VectorStore;
   private memoryService: MemoryService;
 
   constructor() {
-    // Support both OpenAI and OpenRouter, with OpenAI as preferred
+    // Support Gemini, OpenAI, and OpenRouter
+    const geminiKey = process.env.GEMINI_API_KEY?.trim();
     const openaiKey = process.env.OPENAI_API_KEY?.trim();
     const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
     
-    if (!openaiKey && !openRouterKey) {
-      throw new Error('Either OPENAI_API_KEY or OPENROUTER_API_KEY must be set in environment variables');
+    if (!geminiKey && !openaiKey && !openRouterKey) {
+      throw new Error('At least one API key must be set: GEMINI_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY');
     }
     
-    // Initialize OpenAI client if available
+    // Initialize Gemini client if available (preferred for chat)
+    if (geminiKey) {
+      this.geminiClient = new GoogleGenerativeAI(geminiKey);
+    }
+    
+    // Initialize OpenAI client if available (for embeddings fallback)
     if (openaiKey) {
       this.openaiClient = new OpenAI({ apiKey: openaiKey });
-      this.openai = this.openaiClient; // Default to OpenAI
     }
     
-    // Initialize OpenRouter client if available
+    // Initialize OpenRouter client if available (for embeddings fallback)
     if (openRouterKey) {
       this.openRouterClient = new OpenAI({
         apiKey: openRouterKey,
@@ -37,11 +43,6 @@ export class RAGService {
           'X-Title': 'Cloudilic Workflow Builder',
         },
       });
-      
-      // If no OpenAI, use OpenRouter as primary
-      if (!this.openaiClient) {
-        this.openai = this.openRouterClient;
-      }
     }
     
     this.vectorStore = VectorStore.getInstance();
@@ -108,8 +109,79 @@ export class RAGService {
       // Add current query
       messages.push({ role: 'user', content: userPrompt });
 
-      // Determine model and which client to use
-      let model = process.env.CHAT_MODEL || 'gpt-3.5-turbo';
+      // Try Gemini first if available (preferred)
+      if (this.geminiClient) {
+        try {
+          // Use valid Gemini model names
+          const modelName = process.env.CHAT_MODEL || 'gemini-2.5-flash';
+          // Remove 'models/' prefix if present (Gemini SDK handles it)
+          const cleanModelName = modelName.replace(/^models\//, '');
+          
+          // Get max output tokens
+          let maxOutputTokens = 4096;
+          if (process.env.MAX_TOKENS) {
+            maxOutputTokens = parseInt(process.env.MAX_TOKENS, 10);
+          }
+          if (maxOutputTokens < 50) maxOutputTokens = 50;
+          if (maxOutputTokens > 8192) maxOutputTokens = 8192; // Gemini limit
+          
+          // Configure model with generation settings
+          const model = this.geminiClient.getGenerativeModel({ 
+            model: cleanModelName,
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: maxOutputTokens,
+            },
+          });
+          
+          // Convert messages to Gemini format
+          // Gemini doesn't support system messages directly, so we'll prepend it to the first user message
+          let geminiPrompt = '';
+          const systemMessage = messages.find(m => m.role === 'system');
+          const conversationMessages = messages.filter(m => m.role !== 'system');
+          
+          if (systemMessage) {
+            geminiPrompt += `${systemMessage.content}\n\n`;
+          }
+          
+          // Build conversation history for Gemini
+          conversationMessages.forEach((msg) => {
+            if (msg.role === 'user') {
+              geminiPrompt += `User: ${msg.content}\n\n`;
+            } else if (msg.role === 'assistant') {
+              geminiPrompt += `Assistant: ${msg.content}\n\n`;
+            }
+          });
+          
+          const result = await model.generateContent(geminiPrompt);
+          
+          const responseText = result.response.text() || 'No response generated';
+
+          // Store in memory if workflowId is provided
+          if (workflowId) {
+            this.memoryService.addMessage(workflowId, 'user', query);
+            this.memoryService.addMessage(workflowId, 'assistant', responseText);
+          }
+
+          return responseText;
+        } catch (error: any) {
+          const errorMsg = error.message || 'Unknown error';
+          console.log(`Gemini chat failed (${errorMsg}), trying fallback...`);
+          
+          // Fallback to OpenAI or OpenRouter if available
+          if (this.openaiClient || this.openRouterClient) {
+            // Continue to fallback logic below
+          } else {
+            throw new Error(`Gemini API failed: ${errorMsg}`);
+          }
+        }
+      }
+
+      // Fallback to OpenAI/OpenRouter if Gemini not available or failed
+      // If CHAT_MODEL is a Gemini model, use OpenAI default instead
+      let chatModel = process.env.CHAT_MODEL || 'gpt-3.5-turbo';
+      const isGeminiModel = chatModel.includes('gemini') || chatModel.startsWith('models/gemini');
+      let model = isGeminiModel ? 'gpt-3.5-turbo' : chatModel;
       let client = this.openaiClient || this.openRouterClient;
       let originalError: any = null;
       
@@ -118,17 +190,15 @@ export class RAGService {
       }
 
       // Get max_tokens from env or use safe default
-      let maxTokens = 4096; // Maximum for longest responses
+      let maxTokens = 4096;
       if (process.env.MAX_TOKENS) {
         maxTokens = parseInt(process.env.MAX_TOKENS, 10);
       } else if (this.openaiClient && !this.openRouterClient) {
-        maxTokens = 4096; // OpenAI only - gpt-3.5-turbo supports up to 4096
+        maxTokens = 4096;
       } else if (this.openRouterClient && !this.openaiClient) {
-        maxTokens = 3000; // OpenRouter only - increased for better output
+        maxTokens = 3000;
       }
       
-      // Ensure we don't exceed model limits (gpt-3.5-turbo max is 4096)
-      // But allow higher values for other models
       if (maxTokens > 4096) {
         console.warn(`MAX_TOKENS (${maxTokens}) exceeds gpt-3.5-turbo limit (4096). Using 4096.`);
         maxTokens = 4096;
@@ -144,7 +214,15 @@ export class RAGService {
             temperature: 0.7,
             max_tokens: maxTokens,
           });
-          return response.choices[0]?.message?.content || 'No response generated';
+          const responseText = response.choices[0]?.message?.content || 'No response generated';
+
+          // Store in memory if workflowId is provided
+          if (workflowId) {
+            this.memoryService.addMessage(workflowId, 'user', query);
+            this.memoryService.addMessage(workflowId, 'assistant', responseText);
+          }
+
+          return responseText;
         } catch (error: any) {
           originalError = error;
           const errorMsg = error.message || 'Unknown error';
@@ -152,19 +230,18 @@ export class RAGService {
           // If we have OpenRouter available, try fallback
           if (this.openRouterClient) {
             console.log(`OpenAI chat failed (${errorMsg}), trying OpenRouter fallback...`);
-            // Format model for OpenRouter
             if (!model.includes('/')) {
               model = `openai/${model}`;
             }
             client = this.openRouterClient;
           } else {
-            // No fallback, throw the error
             throw error;
           }
         }
       } else {
         // Using OpenRouter only, format model name
-        if (!model.includes('/')) {
+        // Don't add prefix if it's already a Gemini model (OpenRouter doesn't support Gemini)
+        if (!model.includes('/') && !isGeminiModel) {
           if (!model.startsWith('openai/') && !model.startsWith('anthropic/') && !model.startsWith('google/')) {
             model = `openai/${model}`;
           }

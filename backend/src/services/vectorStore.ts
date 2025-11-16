@@ -1,4 +1,5 @@
 import { OpenAI } from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -18,27 +19,36 @@ export class VectorStore {
   private documents: Map<string, Document> = new Map();
   private openai!: OpenAI; // Will be initialized in constructor
 
+  private geminiKey: string | undefined;
   private openaiKey: string | undefined;
   private openRouterKey: string | undefined;
   private useOpenRouter: boolean = false;
+  private geminiClient: GoogleGenerativeAI | null = null;
   private openaiClient: OpenAI | null = null;
   private openRouterClient: OpenAI | null = null;
 
   private constructor() {
     // Store keys for potential fallback
+    this.geminiKey = process.env.GEMINI_API_KEY?.trim();
     this.openaiKey = process.env.OPENAI_API_KEY?.trim();
     this.openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
     
     // Debug logging (only log key length, not the key itself)
+    console.log('[VectorStore] Gemini key length:', this.geminiKey?.length || 0);
     console.log('[VectorStore] OpenAI key length:', this.openaiKey?.length || 0);
     console.log('[VectorStore] OpenRouter key length:', this.openRouterKey?.length || 0);
     
     // Validate at least one key is provided
-    if (!this.openaiKey && !this.openRouterKey) {
-      throw new Error('Either OPENAI_API_KEY or OPENROUTER_API_KEY must be set in environment variables');
+    if (!this.geminiKey && !this.openaiKey && !this.openRouterKey) {
+      throw new Error('At least one API key must be set: GEMINI_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY');
     }
     
-    // Warn if key seems too short (OpenAI keys are typically 50-60 chars)
+    // Initialize Gemini client if available (preferred for embeddings)
+    if (this.geminiKey) {
+      this.geminiClient = new GoogleGenerativeAI(this.geminiKey);
+    }
+    
+    // Warn if OpenAI key seems too short (OpenAI keys are typically 50-60 chars)
     if (this.openaiKey && this.openaiKey.length < 40) {
       console.warn(`[VectorStore] WARNING: OpenAI key seems too short (${this.openaiKey.length} chars). Expected 50-60 characters.`);
     }
@@ -51,7 +61,7 @@ export class VectorStore {
       this.useOpenRouter = true;
       this.initializeOpenRouter();
     } else if (this.openaiKey) {
-      // Initialize OpenAI client (preferred)
+      // Initialize OpenAI client (fallback for embeddings)
       this.openaiClient = new OpenAI({ apiKey: this.openaiKey });
       this.openai = this.openaiClient;
       
@@ -63,6 +73,9 @@ export class VectorStore {
       // Use OpenRouter if OpenAI key not available
       this.useOpenRouter = true;
       this.initializeOpenRouter();
+    } else if (this.geminiClient) {
+      // Use Gemini only if no other clients available
+      this.openai = null as any; // Will use Gemini for embeddings
     }
   }
 
@@ -151,10 +164,68 @@ export class VectorStore {
   }
 
   private async generateEmbeddings(texts: string[]): Promise<number[][]> {
-    let model = process.env.EMBEDDING_MODEL || 'text-embedding-ada-002';
+    let model = process.env.EMBEDDING_MODEL || 'text-embedding-004';
     let originalError: any = null;
     
-    // Try OpenAI first if available and not forced to use OpenRouter
+    // Try Gemini first if available (preferred for embeddings)
+    if (this.geminiClient) {
+      try {
+        // Remove 'models/' prefix if present
+        const cleanModelName = model.replace(/^models\//, '');
+        // Check if it's a Gemini embedding model
+        const isGeminiEmbedding = cleanModelName.includes('embedding') || cleanModelName.includes('text-embedding');
+        
+        if (isGeminiEmbedding) {
+          // Use the embedding model directly
+          const embeddingModel = this.geminiClient.getGenerativeModel({ model: cleanModelName });
+          
+          // Generate embeddings for all texts
+          const embeddingPromises = texts.map(async (text) => {
+            try {
+              // Use embedContent method - it accepts a string or content object
+              const result = await embeddingModel.embedContent(text);
+              
+              // Handle different response formats
+              if (result && result.embedding) {
+                // Check if it has values property
+                if (result.embedding.values && Array.isArray(result.embedding.values)) {
+                  return result.embedding.values;
+                }
+                // Check if embedding is directly an array
+                if (Array.isArray(result.embedding)) {
+                  return result.embedding;
+                }
+              }
+              
+              // Try accessing the response directly
+              const response = result as any;
+              if (response.values && Array.isArray(response.values)) {
+                return response.values;
+              }
+              
+              throw new Error('Invalid embedding response format');
+            } catch (embedError: any) {
+              console.error(`[VectorStore] Gemini embedding error: ${embedError.message}`);
+              throw embedError;
+            }
+          });
+          
+          const embeddings = await Promise.all(embeddingPromises);
+          return embeddings;
+        } else {
+          // Not a Gemini embedding model, fall through to OpenAI/OpenRouter
+          console.log(`[VectorStore] Model ${cleanModelName} is not a Gemini embedding model, trying fallback...`);
+        }
+      } catch (error: any) {
+        originalError = error;
+        const errorMsg = error.message || 'Unknown error';
+        console.log(`[VectorStore] Gemini embedding failed (${errorMsg}), trying fallback...`);
+        
+        // Fall through to OpenAI/OpenRouter fallback
+      }
+    }
+    
+    // Try OpenAI if available and not forced to use OpenRouter
     if (this.openaiClient && !this.useOpenRouter) {
       try {
         const response = await this.openaiClient.embeddings.create({
@@ -210,8 +281,10 @@ export class VectorStore {
         }
         
         // Format model name with provider prefix for OpenRouter
+        // Don't add prefix if it's a Gemini model
         let openRouterModel = model;
-        if (!openRouterModel.includes('/')) {
+        const isGeminiModel = model.includes('embedding') || model.includes('gemini');
+        if (!openRouterModel.includes('/') && !isGeminiModel) {
           openRouterModel = `openai/${openRouterModel}`;
         }
         
@@ -221,24 +294,29 @@ export class VectorStore {
         });
 
         if (originalError) {
-          console.log('Successfully using OpenRouter for embeddings (OpenAI fallback)');
+          console.log('Successfully using OpenRouter/OpenAI for embeddings (Gemini fallback)');
         }
         return response.data.map((item: { embedding: number[] }) => item.embedding);
       } catch (error: any) {
         const errorMsg = error.message || 'Unknown error';
         
         if (originalError) {
-          // Both failed
+          // All providers failed
           throw new Error(
-            `Both OpenAI and OpenRouter failed.\n` +
-            `OpenAI error: ${originalError.message}\n` +
-            `OpenRouter error: ${errorMsg}`
+            `All embedding providers failed.\n` +
+            `Gemini error: ${originalError.message}\n` +
+            `OpenAI/OpenRouter error: ${errorMsg}`
           );
         } else {
-          // OpenRouter failed (and no OpenAI to fallback to)
-          throw new Error(`Failed to generate embeddings with OpenRouter: ${errorMsg}`);
+          // OpenRouter/OpenAI failed (and no Gemini to fallback to)
+          throw new Error(`Failed to generate embeddings with OpenAI/OpenRouter: ${errorMsg}`);
         }
       }
+    }
+    
+    // If we got here and originalError exists, Gemini failed and no fallback
+    if (originalError) {
+      throw new Error(`Gemini embedding failed and no fallback available: ${originalError.message}`);
     }
     
     throw new Error('No API client available for embeddings');
