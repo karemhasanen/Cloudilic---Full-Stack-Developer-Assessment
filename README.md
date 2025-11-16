@@ -11,7 +11,7 @@ A full-stack web application built with React Flow that allows users to create a
   - **Output Node**: Display AI responses with formatted output
 - **PDF Processing**: Extract and index PDF content for semantic search
 - **RAG Implementation**: Semantic search to retrieve relevant document sections
-- **AI Integration**: Generate AI responses using OpenAI or OpenRouter (supports multiple models)
+- **AI Integration**: Generate AI responses using Gemini or OpenAI (supports multiple models)
 - **Workflow Execution**: Run complete workflows with a single button click
 
 ### ✨ Bonus Features
@@ -26,7 +26,7 @@ A full-stack web application built with React Flow that allows users to create a
 ### Backend
 - Node.js + TypeScript
 - Express.js
-- OpenAI API / OpenRouter API (supports multiple AI models)
+- Gemini API / OpenAI API (supports multiple AI models)
 - pdf-parse for PDF extraction
 - In-memory vector store with cosine similarity for semantic search
 
@@ -40,9 +40,9 @@ A full-stack web application built with React Flow that allows users to create a
 
 - **Node.js** (v18 or higher)
 - **npm** or **yarn**
-- **OpenAI API key** OR **OpenRouter API key** (at least one required)
+- **Gemini API key** OR **OpenAI API key** (at least one required)
+  - Get Gemini API key: https://makersuite.google.com/app/apikey
   - Get OpenAI API key: https://platform.openai.com/api-keys
-  - Get OpenRouter API key: https://openrouter.ai/keys
 
 ## 🛠️ Setup Instructions
 
@@ -91,31 +91,27 @@ Then edit `backend/.env` and add your API key(s):
 PORT=5000
 
 # API Keys - At least one is required
+GEMINI_API_KEY=your_gemini_api_key_here
 OPENAI_API_KEY=your_openai_api_key_here
-# OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 # Model Configuration
-CHAT_MODEL=gpt-3.5-turbo
-EMBEDDING_MODEL=text-embedding-3-small
+CHAT_MODEL=gemini-2.5-flash
+EMBEDDING_MODEL=text-embedding-004
 
 # Token Limits (adjust based on your API provider)
 # Note: These are set for maximum output quality - monitor your usage!
 MAX_TOKENS=4096
-MAX_CONTEXT_CHUNKS=5
-MAX_TOTAL_CONTEXT_CHUNKS=8
-MAX_HISTORY_MESSAGES=5
-MAX_CHUNK_LENGTH=600
 ```
 
 **Important Notes:**
-- You need at least one API key (OpenAI or OpenRouter)
-- **Both keys can be set**: If both are provided, OpenAI is tried first with automatic fallback to OpenRouter
+- You need at least one API key (Gemini or OpenAI)
+- **Both keys can be set**: If both are provided, Gemini is tried first with automatic fallback to OpenAI
+- If using Gemini only: Set `GEMINI_API_KEY`
 - If using OpenAI only: Set `OPENAI_API_KEY`
-- If using OpenRouter only: Set `OPENROUTER_API_KEY`
-- If using both: Set both keys for automatic fallback when OpenAI quota is exceeded
+- If using both: Set both keys for automatic fallback when Gemini fails
 - Get API keys:
+  - Gemini: https://makersuite.google.com/app/apikey
   - OpenAI: https://platform.openai.com/api-keys
-  - OpenRouter: https://openrouter.ai/keys
 - **Never commit your `.env` file to Git!** It contains sensitive API keys.
 
 ### Step 4: Run the Application
@@ -236,7 +232,7 @@ cloudilic-workflow-builder/
 
 #### Required Variables
 
-- `OPENAI_API_KEY` OR `OPENROUTER_API_KEY` - At least one API key is required
+- `GEMINI_API_KEY` OR `OPENAI_API_KEY` - At least one API key is required
 
 #### Optional Variables
 
@@ -244,22 +240,15 @@ cloudilic-workflow-builder/
 - `PORT` - Server port (default: 5000)
 
 **Model Configuration:**
-- `CHAT_MODEL` - Model for chat completions (default: `gpt-3.5-turbo`)
+- `CHAT_MODEL` - Model for chat completions (default: `gemini-2.5-flash`)
+  - Gemini: `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, etc.
   - OpenAI: `gpt-3.5-turbo`, `gpt-4-turbo-preview`, `gpt-4`
-  - OpenRouter: `openai/gpt-4-turbo`, `anthropic/claude-3-opus`, etc.
-- `EMBEDDING_MODEL` - Model for embeddings (default: `text-embedding-3-small`)
+- `EMBEDDING_MODEL` - Model for embeddings (default: `text-embedding-004`)
+  - Gemini: `text-embedding-004`, `embedding-001`, `gemini-embedding-exp`, etc.
   - OpenAI: `text-embedding-3-small`, `text-embedding-3-large`, `text-embedding-ada-002`
-  - OpenRouter: `openai/text-embedding-ada-002` (with provider prefix)
 
 **Token Limits:**
-- `MAX_TOKENS` - Maximum output tokens (default: 4096 for OpenAI, 3000 for OpenRouter)
-- `MAX_CONTEXT_CHUNKS` - Context chunks per document search (default: 5)
-- `MAX_TOTAL_CONTEXT_CHUNKS` - Total chunks across all documents (default: 8)
-- `MAX_HISTORY_MESSAGES` - Conversation history messages (default: 5)
-- `MAX_CHUNK_LENGTH` - Characters per context chunk (default: 600)
-
-**Advanced:**
-- `USE_OPENROUTER_FOR_EMBEDDINGS` - Force OpenRouter for embeddings (default: `false`)
+- `MAX_TOKENS` - Maximum output tokens (default: 4096 for OpenAI, up to 8192 for Gemini)
 
 See `backend/env.example` for a complete example.
 
@@ -406,7 +395,7 @@ npm run preview          # Preview production build
 ✅ Conversation memory  
 ✅ Smart prompt engineering  
 ✅ Multi-step workflow orchestration  
-✅ OpenAI and OpenRouter support  
+✅ Gemini and OpenAI support  
 ✅ Beautiful, modern UI  
 
 **Live Demo**: [Add your deployed URL here]  

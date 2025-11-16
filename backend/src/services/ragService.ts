@@ -9,18 +9,16 @@ dotenv.config();
 export class RAGService {
   private geminiClient: GoogleGenerativeAI | null = null;
   private openaiClient: OpenAI | null = null;
-  private openRouterClient: OpenAI | null = null;
   private vectorStore: VectorStore;
   private memoryService: MemoryService;
 
   constructor() {
-    // Support Gemini, OpenAI, and OpenRouter
+    // Support Gemini and OpenAI
     const geminiKey = process.env.GEMINI_API_KEY?.trim();
     const openaiKey = process.env.OPENAI_API_KEY?.trim();
-    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
     
-    if (!geminiKey && !openaiKey && !openRouterKey) {
-      throw new Error('At least one API key must be set: GEMINI_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY');
+    if (!geminiKey && !openaiKey) {
+      throw new Error('At least one API key must be set: GEMINI_API_KEY or OPENAI_API_KEY');
     }
     
     // Initialize Gemini client if available (preferred for chat)
@@ -28,21 +26,9 @@ export class RAGService {
       this.geminiClient = new GoogleGenerativeAI(geminiKey);
     }
     
-    // Initialize OpenAI client if available (for embeddings fallback)
+    // Initialize OpenAI client if available (for fallback)
     if (openaiKey) {
       this.openaiClient = new OpenAI({ apiKey: openaiKey });
-    }
-    
-    // Initialize OpenRouter client if available (for embeddings fallback)
-    if (openRouterKey) {
-      this.openRouterClient = new OpenAI({
-        apiKey: openRouterKey,
-        baseURL: 'https://openrouter.ai/api/v1',
-        defaultHeaders: {
-          'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/cloudilic/workflow-builder',
-          'X-Title': 'Cloudilic Workflow Builder',
-        },
-      });
     }
     
     this.vectorStore = VectorStore.getInstance();
@@ -168,8 +154,8 @@ export class RAGService {
           const errorMsg = error.message || 'Unknown error';
           console.log(`Gemini chat failed (${errorMsg}), trying fallback...`);
           
-          // Fallback to OpenAI or OpenRouter if available
-          if (this.openaiClient || this.openRouterClient) {
+          // Fallback to OpenAI if available
+          if (this.openaiClient) {
             // Continue to fallback logic below
           } else {
             throw new Error(`Gemini API failed: ${errorMsg}`);
@@ -177,15 +163,13 @@ export class RAGService {
         }
       }
 
-      // Fallback to OpenAI/OpenRouter if Gemini not available or failed
+      // Fallback to OpenAI if Gemini not available or failed
       // If CHAT_MODEL is a Gemini model, use OpenAI default instead
       let chatModel = process.env.CHAT_MODEL || 'gpt-3.5-turbo';
       const isGeminiModel = chatModel.includes('gemini') || chatModel.startsWith('models/gemini');
       let model = isGeminiModel ? 'gpt-3.5-turbo' : chatModel;
-      let client = this.openaiClient || this.openRouterClient;
-      let originalError: any = null;
       
-      if (!client) {
+      if (!this.openaiClient) {
         throw new Error('No API client available for chat generation');
       }
 
@@ -193,10 +177,6 @@ export class RAGService {
       let maxTokens = 4096;
       if (process.env.MAX_TOKENS) {
         maxTokens = parseInt(process.env.MAX_TOKENS, 10);
-      } else if (this.openaiClient && !this.openRouterClient) {
-        maxTokens = 4096;
-      } else if (this.openRouterClient && !this.openaiClient) {
-        maxTokens = 3000;
       }
       
       if (maxTokens > 4096) {
@@ -205,102 +185,25 @@ export class RAGService {
       }
       if (maxTokens < 50) maxTokens = 50;
 
-      // Try OpenAI first if available
-      if (this.openaiClient) {
-        try {
-          const response = await this.openaiClient.chat.completions.create({
-            model,
-            messages,
-            temperature: 0.7,
-            max_tokens: maxTokens,
-          });
-          const responseText = response.choices[0]?.message?.content || 'No response generated';
-
-          // Store in memory if workflowId is provided
-          if (workflowId) {
-            this.memoryService.addMessage(workflowId, 'user', query);
-            this.memoryService.addMessage(workflowId, 'assistant', responseText);
-          }
-
-          return responseText;
-        } catch (error: any) {
-          originalError = error;
-          const errorMsg = error.message || 'Unknown error';
-          
-          // If we have OpenRouter available, try fallback
-          if (this.openRouterClient) {
-            console.log(`OpenAI chat failed (${errorMsg}), trying OpenRouter fallback...`);
-            if (!model.includes('/')) {
-              model = `openai/${model}`;
-            }
-            client = this.openRouterClient;
-          } else {
-            throw error;
-          }
-        }
-      } else {
-        // Using OpenRouter only, format model name
-        // Don't add prefix if it's already a Gemini model (OpenRouter doesn't support Gemini)
-        if (!model.includes('/') && !isGeminiModel) {
-          if (!model.startsWith('openai/') && !model.startsWith('anthropic/') && !model.startsWith('google/')) {
-            model = `openai/${model}`;
-          }
-        }
-      }
-
-      // Use OpenRouter (either as primary or fallback)
-      if (client) {
-        const response = await client.chat.completions.create({
-          model,
-          messages,
-          temperature: 0.7,
-          max_tokens: maxTokens,
-        });
-        
-        if (originalError) {
-          console.log('Successfully using OpenRouter for chat (OpenAI fallback)');
-        }
-        
-        const responseText = response.choices[0]?.message?.content || 'No response generated';
-
-        // Store in memory if workflowId is provided
-        if (workflowId) {
-          this.memoryService.addMessage(workflowId, 'user', query);
-          this.memoryService.addMessage(workflowId, 'assistant', responseText);
-        }
-
-        return responseText;
-      }
+      // Use OpenAI as fallback
+      const response = await this.openaiClient.chat.completions.create({
+        model,
+        messages,
+        temperature: 0.7,
+        max_tokens: maxTokens,
+      });
       
-      throw new Error('No API client available for chat generation');
+      const responseText = response.choices[0]?.message?.content || 'No response generated';
+
+      // Store in memory if workflowId is provided
+      if (workflowId) {
+        this.memoryService.addMessage(workflowId, 'user', query);
+        this.memoryService.addMessage(workflowId, 'assistant', responseText);
+      }
+
+      return responseText;
     } catch (error: any) {
       const errorMsg = error.message || 'Unknown error';
-      
-      // Handle OpenRouter credit errors
-      if (errorMsg.includes('402') || errorMsg.includes('credits') || errorMsg.includes('afford')) {
-        // Extract the affordable token count from error message if available
-        const affordMatch = errorMsg.match(/can only afford (\d+)/);
-        const affordableTokens = affordMatch ? parseInt(affordMatch[1], 10) : null;
-        
-        let suggestion = '';
-        if (affordableTokens) {
-          // Suggest 70% of affordable tokens to account for input tokens
-          const suggestedMax = Math.floor(affordableTokens * 0.7);
-          suggestion = `You can afford ${affordableTokens} total tokens. ` +
-            `Set MAX_TOKENS=${suggestedMax} (or lower like ${suggestedMax - 50}) to account for input tokens. `;
-        } else {
-          suggestion = `Reduce MAX_TOKENS in .env file (currently set to ${process.env.MAX_TOKENS || '600'}). ` +
-            `Try setting MAX_TOKENS=400, 500, or 550. `;
-        }
-        
-        throw new Error(
-          `OpenRouter credit limit exceeded. ` +
-          suggestion +
-          `Or add credits at https://openrouter.ai/settings/credits\n` +
-          `Original error: ${errorMsg}`
-        );
-      }
-      
       throw new Error(`Failed to generate response: ${errorMsg}`);
     }
   }

@@ -47,11 +47,10 @@ app.get('/api/health', (req, res) => {
 app.get('/api/debug/env', (req, res) => {
   const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
-  const openRouterKey = process.env.OPENROUTER_API_KEY;
   
   // Check for common issues
   const issues = [];
-  if (!geminiKey && !openaiKey && !openRouterKey) {
+  if (!geminiKey && !openaiKey) {
     issues.push('No API keys set');
   } else {
     if (geminiKey) {
@@ -76,12 +75,13 @@ app.get('/api/debug/env', (req, res) => {
         issues.push('OpenAI key contains invalid characters (asterisks or spaces)');
       }
     }
-    if (openRouterKey && openRouterKey.length < 20) {
-      issues.push(`OpenRouter key too short: ${openRouterKey.length} chars`);
-    }
-    // Warn if no embedding provider
-    if (!openaiKey && !openRouterKey) {
-      issues.push('Warning: No embedding provider set (Gemini doesn\'t support embeddings, need OpenAI or OpenRouter)');
+    // Warn if no embedding provider (but Gemini supports embeddings now)
+    const embeddingModel = process.env.EMBEDDING_MODEL || '';
+    const isGeminiEmbedding = embeddingModel.includes('embedding') || embeddingModel.includes('text-embedding');
+    if (!openaiKey && !geminiKey) {
+      issues.push('Warning: No API keys set. Need GEMINI_API_KEY or OPENAI_API_KEY');
+    } else if (!openaiKey && !isGeminiEmbedding && geminiKey) {
+      issues.push('Warning: Using OpenAI embedding model but no OPENAI_API_KEY set. Consider using Gemini embedding model (text-embedding-004)');
     }
   }
   
@@ -94,9 +94,6 @@ app.get('/api/debug/env', (req, res) => {
     openAIKeyPrefix: openaiKey ? `${openaiKey.substring(0, 10)}...${openaiKey.substring(openaiKey.length - 4)}` : 'not set',
     openAIKeyStartsWith: openaiKey ? openaiKey.substring(0, 7) : 'not set',
     openAIKeyEndsWith: openaiKey ? openaiKey.substring(openaiKey.length - 4) : 'not set',
-    hasOpenRouterKey: !!openRouterKey,
-    openRouterKeyLength: openRouterKey?.length || 0,
-    openRouterKeyPrefix: openRouterKey ? `${openRouterKey.substring(0, 10)}...` : 'not set',
     embeddingModel: process.env.EMBEDDING_MODEL || 'not set',
     chatModel: process.env.CHAT_MODEL || 'not set',
     issues: issues.length > 0 ? issues : ['No issues detected'],
