@@ -292,62 +292,6 @@ The `.gitignore` file is configured to ignore:
 
 ⚠️ **Never commit your `.env` file!** It contains your API keys. The `.gitignore` is configured to prevent this, but always double-check before committing.
 
-## 🚀 Deployment
-
-### Build for Production
-
-#### Backend
-
-```bash
-cd backend
-npm run build
-npm start
-```
-
-The compiled files will be in `backend/dist/`
-
-#### Frontend
-
-```bash
-cd frontend
-npm run build
-```
-
-The built files will be in `frontend/dist/`
-
-### Deploy to Vercel
-
-#### Frontend Deployment
-
-1. Install Vercel CLI: `npm i -g vercel`
-2. Deploy:
-   ```bash
-   cd frontend
-   vercel
-   ```
-3. Configure environment variables in Vercel dashboard
-
-#### Backend Deployment
-
-For Node.js backends, consider:
-- **Railway**: https://railway.app
-- **Render**: https://render.com
-- **Heroku**: https://heroku.com
-- **Fly.io**: https://fly.io
-
-Make sure to set all environment variables in your hosting platform.
-
-### Quick Deploy Commands
-
-```bash
-# Build both
-npm run build:all
-
-# Or individually
-npm run build:backend
-npm run build:frontend
-```
-
 ## 🔧 Development
 
 ### Project Scripts
@@ -396,7 +340,4 @@ npm run preview          # Preview production build
 ✅ Smart prompt engineering  
 ✅ Multi-step workflow orchestration  
 ✅ Gemini and OpenAI support  
-✅ Beautiful, modern UI  
-
-**Live Demo**: [Add your deployed URL here]  
-**Repository**: [Add your GitHub URL here]
+✅ Beautiful, modern UI
