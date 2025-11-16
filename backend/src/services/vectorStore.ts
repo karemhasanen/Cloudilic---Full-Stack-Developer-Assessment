@@ -29,9 +29,18 @@ export class VectorStore {
     this.openaiKey = process.env.OPENAI_API_KEY?.trim();
     this.openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
     
+    // Debug logging (only log key length, not the key itself)
+    console.log('[VectorStore] OpenAI key length:', this.openaiKey?.length || 0);
+    console.log('[VectorStore] OpenRouter key length:', this.openRouterKey?.length || 0);
+    
     // Validate at least one key is provided
     if (!this.openaiKey && !this.openRouterKey) {
       throw new Error('Either OPENAI_API_KEY or OPENROUTER_API_KEY must be set in environment variables');
+    }
+    
+    // Warn if key seems too short (OpenAI keys are typically 50-60 chars)
+    if (this.openaiKey && this.openaiKey.length < 40) {
+      console.warn(`[VectorStore] WARNING: OpenAI key seems too short (${this.openaiKey.length} chars). Expected 50-60 characters.`);
     }
     
     // Check if we should force OpenRouter
@@ -157,13 +166,28 @@ export class VectorStore {
         originalError = error;
         const errorMsg = error.message || 'Unknown error';
         
+        // Log detailed error for debugging
+        console.error('[VectorStore] OpenAI embedding error:', {
+          message: errorMsg,
+          status: error.status,
+          keyLength: this.openaiKey?.length || 0,
+          keyPrefix: this.openaiKey ? `${this.openaiKey.substring(0, 10)}...` : 'not set'
+        });
+        
         // If we have OpenRouter available, try fallback
         if (this.openRouterClient) {
           console.log(`OpenAI embedding failed (${errorMsg}), trying OpenRouter fallback...`);
         } else {
           // No fallback available, throw the error
-          if (errorMsg.includes('401') || errorMsg.includes('API key')) {
-            throw new Error(`OpenAI API authentication failed: ${errorMsg}`);
+          if (errorMsg.includes('401') || errorMsg.includes('API key') || errorMsg.includes('Incorrect API key')) {
+            const keyInfo = this.openaiKey 
+              ? `Key length: ${this.openaiKey.length} chars (expected 50-60). Key prefix: ${this.openaiKey.substring(0, 10)}...`
+              : 'Key not set';
+            throw new Error(
+              `OpenAI API authentication failed: ${errorMsg}. ${keyInfo}. ` +
+              `Please check your OPENAI_API_KEY in Vercel environment variables. ` +
+              `Make sure the key is complete (50-60 characters) and set for Production environment.`
+            );
           } else if (errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('billing')) {
             throw new Error(
               `OpenAI API quota exceeded. ` +
