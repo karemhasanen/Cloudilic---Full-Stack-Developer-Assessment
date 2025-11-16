@@ -66,13 +66,6 @@ temp/
 # TypeScript
 *.tsbuildinfo
 
-# Documentation files (exclude from GitHub)
-QUICK_START.md
-RENAME_INSTRUCTIONS.md
-SETUP.md
-TROUBLESHOOTING.md
-BONUS_FEATURES.md
-MODEL_CONFIGURATION.md
-
-# Keep README.md (required for GitHub)
+# Documentation files (exclude from GitHub) - Keep only README.md
+*.md
 !README.md
