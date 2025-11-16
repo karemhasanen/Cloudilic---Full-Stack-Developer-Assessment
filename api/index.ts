@@ -43,6 +43,23 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Cloudilic backend is running', path: req.path });
 });
 
+// Debug endpoint to check environment variables (without exposing full keys)
+app.get('/api/debug/env', (req, res) => {
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  
+  res.json({
+    hasOpenAIKey: !!openaiKey,
+    openAIKeyLength: openaiKey?.length || 0,
+    openAIKeyPrefix: openaiKey ? `${openaiKey.substring(0, 10)}...` : 'not set',
+    hasOpenRouterKey: !!openRouterKey,
+    openRouterKeyLength: openRouterKey?.length || 0,
+    openRouterKeyPrefix: openRouterKey ? `${openRouterKey.substring(0, 10)}...` : 'not set',
+    embeddingModel: process.env.EMBEDDING_MODEL || 'not set',
+    chatModel: process.env.CHAT_MODEL || 'not set',
+  });
+});
+
 // Root path handler
 app.get('/', (req, res) => {
   res.json({ 
