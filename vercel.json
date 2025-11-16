@@ -1,14 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "buildCommand": "if [ -d frontend ]; then cd frontend && npm install && npm run build; else echo 'Frontend folder not found'; exit 1; fi",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install && if [ -d backend ]; then cd backend && npm install && cd ..; fi && if [ -d frontend ]; then cd frontend && npm install && cd ..; fi",
   "framework": null,
-  "functions": {
-    "api/index.ts": {
-      "runtime": "nodejs20.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
