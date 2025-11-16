@@ -48,15 +48,41 @@ app.get('/api/debug/env', (req, res) => {
   const openaiKey = process.env.OPENAI_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   
+  // Check for common issues
+  const issues = [];
+  if (!openaiKey && !openRouterKey) {
+    issues.push('No API keys set');
+  } else {
+    if (openaiKey) {
+      if (openaiKey.length < 40) {
+        issues.push(`OpenAI key too short: ${openaiKey.length} chars (expected 50-60)`);
+      }
+      if (!openaiKey.startsWith('sk-')) {
+        issues.push('OpenAI key does not start with "sk-"');
+      }
+      // Check for suspicious patterns
+      if (openaiKey.includes('*') || openaiKey.includes(' ')) {
+        issues.push('OpenAI key contains invalid characters (asterisks or spaces)');
+      }
+    }
+    if (openRouterKey && openRouterKey.length < 20) {
+      issues.push(`OpenRouter key too short: ${openRouterKey.length} chars`);
+    }
+  }
+  
   res.json({
     hasOpenAIKey: !!openaiKey,
     openAIKeyLength: openaiKey?.length || 0,
-    openAIKeyPrefix: openaiKey ? `${openaiKey.substring(0, 10)}...` : 'not set',
+    openAIKeyPrefix: openaiKey ? `${openaiKey.substring(0, 10)}...${openaiKey.substring(openaiKey.length - 4)}` : 'not set',
+    openAIKeyStartsWith: openaiKey ? openaiKey.substring(0, 7) : 'not set',
+    openAIKeyEndsWith: openaiKey ? openaiKey.substring(openaiKey.length - 4) : 'not set',
     hasOpenRouterKey: !!openRouterKey,
     openRouterKeyLength: openRouterKey?.length || 0,
     openRouterKeyPrefix: openRouterKey ? `${openRouterKey.substring(0, 10)}...` : 'not set',
     embeddingModel: process.env.EMBEDDING_MODEL || 'not set',
     chatModel: process.env.CHAT_MODEL || 'not set',
+    issues: issues.length > 0 ? issues : ['No issues detected'],
+    vercelEnv: process.env.VERCEL ? 'true' : 'false',
   });
 });
 
